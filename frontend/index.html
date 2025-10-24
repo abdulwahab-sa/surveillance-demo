@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Real-Time Frame Viewer (Canvas)</title>
+		<style>
+			body {
+				background: #111;
+				color: white;
+				font-family: sans-serif;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				height: 100vh;
+				margin: 0;
+			}
+			canvas {
+				border: 2px solid #444;
+				border-radius: 8px;
+				max-width: 90vw;
+				max-height: 90vh;
+				background: #000;
+			}
+			.status {
+				margin-top: 12px;
+				font-size: 14px;
+				color: #0f0;
+			}
+		</style>
+	</head>
+	<body>
+		<h2>Surveillance Demo</h2>
+		<canvas id="frameCanvas" width="640" height="480"></canvas>
+		<div class="status" id="status">Connecting to server...</div>
+
+		<script>
+			const canvas = document.getElementById('frameCanvas');
+			const ctx = canvas.getContext('2d');
+			const status = document.getElementById('status');
+
+			const ws = new WebSocket(`ws://${window.location.hostname}:3005`);
+			ws.binaryType = 'arraybuffer';
+
+			// ✅ FPS tracking variables
+			let frameCount = 0;
+			let lastTime = performance.now();
+			let fps = 0;
+
+			ws.onopen = () => {
+				status.textContent = '🟢 Connected — waiting for frames...';
+			};
+
+			ws.onmessage = async (event) => {
+				try {
+					const buffer = event.data;
+					const view = new DataView(buffer);
+
+					// Read header length (first 4 bytes)
+					const headerLength = view.getUint32(0);
+
+					// Parse JSON header
+					const headerText = new TextDecoder().decode(buffer.slice(4, 4 + headerLength));
+					const header = JSON.parse(headerText);
+
+					// Remaining bytes = BMP data
+					const bmpBytes = buffer.slice(4 + headerLength);
+					const blob = new Blob([bmpBytes], { type: 'image/bmp' });
+					const bitmap = await createImageBitmap(blob);
+
+					// Draw the frame
+					ctx.clearRect(0, 0, canvas.width, canvas.height);
+					ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+					// ✅ FPS calculation
+					frameCount++;
+					const now = performance.now();
+					const delta = now - lastTime;
+					if (delta >= 1000) {
+						fps = ((frameCount * 1000) / delta).toFixed(2);
+						frameCount = 0;
+						lastTime = now;
+					}
+
+					// ✅ Display FPS on top-left corner
+					ctx.font = '20px monospace';
+					ctx.fillStyle = 'red';
+					const fpsText = `FPS: ${fps}`;
+					ctx.fillText(fpsText, 10, 25);
+
+					// ✅ Show current frame info
+					status.textContent = `📡 Frame from ${header.camNo}`;
+				} catch (err) {
+					console.error('Frame render error:', err);
+					status.textContent = '⚠️ Frame render error';
+				}
+			};
+
+			ws.onclose = () => {
+				status.textContent = '🔴 Disconnected';
+			};
+		</script>
+	</body>
+</html>
