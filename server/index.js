@@ -11,7 +11,7 @@ const EventEmitter = require('events');
 // --- CONFIG ---
 const SOCKET_PORT = 9000;
 const HTTP_PORT = 3005;
-const JPEG_FOLDER = path.resolve(process.env.BMP_FOLDER || '../jpegData');
+const BMP_FOLDER = path.resolve('./bmpData');
 const DB_BATCH_SIZE = 30;
 const DB_FLUSH_INTERVAL = 1500;
 const STORAGE_QUEUE_MAX = 80;
@@ -25,8 +25,8 @@ function log(message, level = 'INFO') {
 log('Node.js server starting...');
 
 // Create storage folder
-fs.mkdir(JPEG_FOLDER, { recursive: true })
-	.then(() => log(`Storage folder: ${JPEG_FOLDER}`))
+fs.mkdir(BMP_FOLDER, { recursive: true })
+	.then(() => log(`Storage folder: ${BMP_FOLDER}`))
 	.catch((err) => log(`Storage folder error: ${err.message}`, 'ERROR'));
 
 // --- Express + WebSocket Setup ---
@@ -40,15 +40,24 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 // --- MariaDB Connection Pool ---
+
+const DB_HOST = 'localhost';
+const DB_PORT = 3306;
+const DB_USER = 'demo';
+const DB_PASSWORD = 'demo123';
+const DB_NAME = 'imgindex';
+
 const pool = mariadb.createPool({
-	host: process.env.DB_HOST,
-	user: process.env.DB_USER,
-	password: process.env.DB_PASSWORD,
-	database: process.env.DB_NAME,
+	host: DB_HOST,
+	user: DB_USER,
+	password: DB_PASSWORD,
+	database: DB_NAME,
 	connectionLimit: 5,
+	port: DB_PORT,
+	acquireTimeout: 20000,
 });
 
-log(`MariaDB pool created (${process.env.DB_HOST}/${process.env.DB_NAME})`);
+log(`MariaDB pool created (${DB_HOST}/${DB_NAME}/${DB_USER}/${DB_PORT}/...)`);
 
 // Test DB connection
 pool
@@ -157,7 +166,7 @@ async function processStorageQueue() {
 
 	while (storageQueue.length > 0) {
 		const task = storageQueue.shift();
-		const filePath = path.join(JPEG_FOLDER, task.filename);
+		const filePath = path.join(BMP_FOLDER, task.filename);
 
 		try {
 			await fs.writeFile(filePath, task.imageBuffer);
