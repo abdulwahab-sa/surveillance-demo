@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Surveillance Playback</title>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			body {
+				background: #111;
+				color: white;
+				font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				padding: 20px;
+				min-height: 100vh;
+			}
+
+			h2 {
+				margin-bottom: 20px;
+				font-weight: 300;
+				letter-spacing: 1px;
+			}
+
+			canvas {
+				border: 2px solid #444;
+				border-radius: 8px;
+				max-width: 90vw;
+				background: #000;
+				margin-bottom: 30px;
+			}
+
+			.controls {
+				background: #1a1a1a;
+				border: 1px solid #333;
+				border-radius: 12px;
+				padding: 30px;
+				width: 90vw;
+				max-width: 800px;
+				box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+			}
+
+			.slider-container {
+				display: grid;
+				grid-template-columns: 60px 1fr 80px;
+				align-items: center;
+				gap: 15px;
+				margin-bottom: 15px;
+			}
+
+			.slider-label {
+				font-size: 14px;
+				font-weight: 500;
+				color: #aaa;
+				text-align: right;
+			}
+
+			.slider {
+				width: 100%;
+				height: 8px;
+				border-radius: 4px;
+				background: #333;
+				outline: none;
+				-webkit-appearance: none;
+				appearance: none;
+			}
+
+			.slider::-webkit-slider-thumb {
+				-webkit-appearance: none;
+				appearance: none;
+				width: 20px;
+				height: 20px;
+				border-radius: 50%;
+				background: #0f0;
+				cursor: pointer;
+				box-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+			}
+
+			.slider::-moz-range-thumb {
+				width: 20px;
+				height: 20px;
+				border-radius: 50%;
+				background: #0f0;
+				cursor: pointer;
+				border: none;
+				box-shadow: 0 0 8px rgba(0, 255, 0, 0.5);
+			}
+
+			.slider-value {
+				font-size: 16px;
+				font-weight: 600;
+				color: #0f0;
+				text-align: center;
+				font-family: 'Courier New', monospace;
+			}
+
+			.button-group {
+				display: flex;
+				gap: 15px;
+				justify-content: center;
+				margin-top: 30px;
+			}
+
+			button {
+				padding: 12px 40px;
+				font-size: 16px;
+				font-weight: 600;
+				border: none;
+				border-radius: 6px;
+				cursor: pointer;
+				transition: all 0.3s ease;
+				text-transform: uppercase;
+				letter-spacing: 1px;
+			}
+
+			#startBtn {
+				background: #0f0;
+				color: #000;
+			}
+
+			#startBtn:hover {
+				background: #0c0;
+				box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+			}
+
+			#startBtn:disabled {
+				background: #333;
+				color: #666;
+				cursor: not-allowed;
+			}
+
+			#stopBtn {
+				background: #f00;
+				color: white;
+			}
+
+			#stopBtn:hover {
+				background: #c00;
+				box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+			}
+
+			#stopBtn:disabled {
+				background: #333;
+				color: #666;
+				cursor: not-allowed;
+			}
+
+			.status {
+				margin-top: 20px;
+				font-size: 14px;
+				color: #0f0;
+				text-align: center;
+			}
+
+			.camera-select {
+				display: flex;
+				align-items: center;
+				gap: 15px;
+				margin-bottom: 25px;
+				justify-content: center;
+			}
+
+			.camera-select label {
+				font-size: 14px;
+				color: #aaa;
+			}
+
+			.camera-select select {
+				padding: 8px 15px;
+				background: #222;
+				color: #0f0;
+				border: 1px solid #444;
+				border-radius: 4px;
+				font-size: 14px;
+				cursor: pointer;
+			}
+		</style>
+	</head>
+	<body>
+		<h2>Surveillance Playback</h2>
+
+		<canvas id="frameCanvas" width="640" height="480"></canvas>
+
+		<div class="controls">
+			<div class="camera-select">
+				<label for="cameraSelect">Camera:</label>
+				<select id="cameraSelect">
+					<option value="CAM0">CAM0</option>
+					<option value="CAM1">CAM1</option>
+					<option value="CAM2">CAM2</option>
+				</select>
+			</div>
+
+			<div class="slider-container">
+				<div class="slider-label">Year</div>
+				<input type="range" id="yearSlider" class="slider" min="2020" max="2030" value="2025" />
+				<div class="slider-value" id="yearValue">2025</div>
+			</div>
+
+			<div class="slider-container">
+				<div class="slider-label">Month</div>
+				<input type="range" id="monthSlider" class="slider" min="1" max="12" value="1" />
+				<div class="slider-value" id="monthValue">01</div>
+			</div>
+
+			<div class="slider-container">
+				<div class="slider-label">Day</div>
+				<input type="range" id="daySlider" class="slider" min="1" max="31" value="1" />
+				<div class="slider-value" id="dayValue">01</div>
+			</div>
+
+			<div class="slider-container">
+				<div class="slider-label">Hour</div>
+				<input type="range" id="hourSlider" class="slider" min="0" max="23" value="0" />
+				<div class="slider-value" id="hourValue">00</div>
+			</div>
+
+			<div class="slider-container">
+				<div class="slider-label">Min</div>
+				<input type="range" id="minSlider" class="slider" min="0" max="59" value="0" />
+				<div class="slider-value" id="minValue">00</div>
+			</div>
+
+			<div class="slider-container">
+				<div class="slider-label">Sec</div>
+				<input type="range" id="secSlider" class="slider" min="0" max="59" value="0" />
+				<div class="slider-value" id="secValue">00</div>
+			</div>
+
+			<div class="button-group">
+				<button id="startBtn">Start</button>
+				<button id="stopBtn" disabled>Stop</button>
+			</div>
+		</div>
+
+		<div class="status" id="status">Ready to start playback</div>
+
+		<script>
+			const canvas = document.getElementById('frameCanvas');
+			const ctx = canvas.getContext('2d');
+			const status = document.getElementById('status');
+
+			// Slider elements
+			const yearSlider = document.getElementById('yearSlider');
+			const monthSlider = document.getElementById('monthSlider');
+			const daySlider = document.getElementById('daySlider');
+			const hourSlider = document.getElementById('hourSlider');
+			const minSlider = document.getElementById('minSlider');
+			const secSlider = document.getElementById('secSlider');
+
+			// Value displays
+			const yearValue = document.getElementById('yearValue');
+			const monthValue = document.getElementById('monthValue');
+			const dayValue = document.getElementById('dayValue');
+			const hourValue = document.getElementById('hourValue');
+			const minValue = document.getElementById('minValue');
+			const secValue = document.getElementById('secValue');
+
+			// Buttons
+			const startBtn = document.getElementById('startBtn');
+			const stopBtn = document.getElementById('stopBtn');
+			const cameraSelect = document.getElementById('cameraSelect');
+
+			// WebSocket
+			let ws = null;
+			let isPlaying = false;
+			let frameCount = 0;
+			let lastTime = performance.now();
+			let fps = 0;
+
+			// Update slider value displays
+			function pad(num) {
+				return String(num).padStart(2, '0');
+			}
+
+			yearSlider.addEventListener('input', (e) => {
+				yearValue.textContent = e.target.value;
+			});
+
+			monthSlider.addEventListener('input', (e) => {
+				monthValue.textContent = pad(e.target.value);
+			});
+
+			daySlider.addEventListener('input', (e) => {
+				dayValue.textContent = pad(e.target.value);
+			});
+
+			hourSlider.addEventListener('input', (e) => {
+				hourValue.textContent = pad(e.target.value);
+			});
+
+			minSlider.addEventListener('input', (e) => {
+				minValue.textContent = pad(e.target.value);
+			});
+
+			secSlider.addEventListener('input', (e) => {
+				secValue.textContent = pad(e.target.value);
+			});
+
+			// Connect WebSocket
+			function connectWebSocket() {
+				ws = new WebSocket(`ws://${window.location.hostname}:3005`);
+				ws.binaryType = 'arraybuffer';
+
+				ws.onopen = () => {
+					status.textContent = 'Connected to server';
+					startBtn.disabled = false;
+				};
+
+				ws.onmessage = async (event) => {
+					// Handle JSON messages
+					if (
+						typeof event.data === 'string' ||
+						(event.data instanceof ArrayBuffer && event.data.byteLength < 100)
+					) {
+						try {
+							const msg = JSON.parse(event.data);
+
+							if (msg.type === 'playback-complete') {
+								status.textContent = `Playback complete - ${msg.totalFrames} frames`;
+								stopPlayback();
+							} else if (msg.type === 'playback-no-data') {
+								status.textContent = `No frames found in database for selected time period`;
+								status.style.color = '#ff9900';
+
+								// Show message on canvas
+								ctx.clearRect(0, 0, canvas.width, canvas.height);
+								ctx.fillStyle = '#111';
+								ctx.fillRect(0, 0, canvas.width, canvas.height);
+								ctx.font = '24px sans-serif';
+								ctx.fillStyle = '#ff9900';
+								ctx.textAlign = 'center';
+								ctx.fillText(
+									'No frames found in database',
+									canvas.width / 2,
+									canvas.height / 2 - 20
+								);
+								ctx.font = '16px sans-serif';
+								ctx.fillStyle = '#888';
+								ctx.fillText(
+									'Try selecting a different time period',
+									canvas.width / 2,
+									canvas.height / 2 + 20
+								);
+								ctx.textAlign = 'left';
+
+								stopPlayback();
+							} else if (msg.type === 'playback-no-frames') {
+								status.textContent = `Frame files not found on disk`;
+								status.style.color = '#f00';
+
+								// Show message on canvas
+								ctx.clearRect(0, 0, canvas.width, canvas.height);
+								ctx.fillStyle = '#111';
+								ctx.fillRect(0, 0, canvas.width, canvas.height);
+								ctx.font = '24px sans-serif';
+								ctx.fillStyle = '#f00';
+								ctx.textAlign = 'center';
+								ctx.fillText('Frame files missing', canvas.width / 2, canvas.height / 2 - 40);
+								ctx.font = '16px sans-serif';
+								ctx.fillStyle = '#888';
+								ctx.fillText(
+									'Database has metadata but files are not on disk',
+									canvas.width / 2,
+									canvas.height / 2 - 5
+								);
+								ctx.fillText('This may be old test data', canvas.width / 2, canvas.height / 2 + 25);
+								ctx.textAlign = 'left';
+
+								stopPlayback();
+							} else if (msg.type === 'frame-missing') {
+								const errorCount = msg.consecutiveErrors || 0;
+								status.textContent = `Some frame files missing (${errorCount} errors) - attempting to continue`;
+								status.style.color = '#ff9900';
+								console.warn('Missing frames:', msg.filename);
+							} else if (msg.type === 'error') {
+								status.textContent = `Error: ${msg.message}`;
+								status.style.color = '#f00';
+								stopPlayback();
+							} else if (msg.type === 'playback-started') {
+								status.textContent = `Playback started`;
+								status.style.color = '#0f0';
+							}
+							return;
+						} catch (e) {
+							// Not JSON, must be binary frame
+						}
+					}
+
+					// Handle binary frames
+					try {
+						const buffer = event.data;
+						const view = new DataView(buffer);
+
+						// Read header length
+						const headerLength = view.getUint32(0);
+
+						// Parse JSON header
+						const headerText = new TextDecoder().decode(buffer.slice(4, 4 + headerLength));
+						const header = JSON.parse(headerText);
+
+						// Only process playback frames
+						if (header.type !== 'playback') return;
+
+						// Get BMP data
+						const bmpBytes = buffer.slice(4 + headerLength);
+						const blob = new Blob([bmpBytes], { type: 'image/bmp' });
+						const bitmap = await createImageBitmap(blob);
+
+						// Draw frame
+						ctx.clearRect(0, 0, canvas.width, canvas.height);
+						ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+						// Calculate FPS
+						frameCount++;
+						const now = performance.now();
+						const delta = now - lastTime;
+						if (delta >= 1000) {
+							fps = ((frameCount * 1000) / delta).toFixed(2);
+							frameCount = 0;
+							lastTime = now;
+						}
+
+						// Display FPS overlay
+						ctx.font = '20px monospace';
+						ctx.fillStyle = 'red';
+						ctx.fillText(`FPS: ${fps}`, 10, 25);
+
+						// Update status
+						const date = new Date(header.timestamp);
+						status.textContent = `Playing: ${date.toLocaleString()}`;
+						status.style.color = '#0f0';
+					} catch (err) {
+						console.error('Frame render error:', err);
+					}
+				};
+
+				ws.onclose = () => {
+					status.textContent = 'Disconnected';
+					startBtn.disabled = true;
+					stopBtn.disabled = true;
+					isPlaying = false;
+				};
+
+				ws.onerror = (err) => {
+					console.error('WebSocket error:', err);
+					status.textContent = 'Connection error';
+				};
+			}
+
+			// Start playback
+			function startPlayback() {
+				if (!ws || ws.readyState !== WebSocket.OPEN) {
+					status.textContent = 'Not connected to server';
+					return;
+				}
+
+				const startTime = {
+					year: parseInt(yearSlider.value),
+					month: parseInt(monthSlider.value),
+					day: parseInt(daySlider.value),
+					hour: parseInt(hourSlider.value),
+					minute: parseInt(minSlider.value),
+					second: parseInt(secSlider.value),
+				};
+
+				const camNo = cameraSelect.value;
+
+				// Send playback start command
+				ws.send(
+					JSON.stringify({
+						action: 'playback-start',
+						camNo: camNo,
+						startTime: startTime,
+						speed: 1.0,
+					})
+				);
+
+				isPlaying = true;
+				startBtn.disabled = true;
+				stopBtn.disabled = false;
+				status.textContent = `Starting playback from ${startTime.year}-${pad(
+					startTime.month
+				)}-${pad(startTime.day)} ${pad(startTime.hour)}:${pad(startTime.minute)}:${pad(
+					startTime.second
+				)}...`;
+			}
+
+			// Stop playback
+			function stopPlayback() {
+				if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+				ws.send(
+					JSON.stringify({
+						action: 'playback-stop',
+					})
+				);
+
+				isPlaying = false;
+				startBtn.disabled = false;
+				stopBtn.disabled = true;
+
+				// Only update status if it's not already showing an error/warning
+				if (status.style.color === 'rgb(0, 255, 0)' || status.style.color === '') {
+					status.textContent = 'Playback stopped';
+					status.style.color = '#0f0';
+				}
+			}
+
+			// Button event listeners
+			startBtn.addEventListener('click', startPlayback);
+			stopBtn.addEventListener('click', stopPlayback);
+
+			// Initialize connection
+			connectWebSocket();
+		</script>
+	</body>
+</html>
