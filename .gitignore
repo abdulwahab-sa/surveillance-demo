@@ -3,3 +3,8 @@ node_modules
 .vscode
 ./simulator
 bmpData
+*.exe
+*.dll
+downloaded_frame.bmp
+compile_log.txt
+compile.bat

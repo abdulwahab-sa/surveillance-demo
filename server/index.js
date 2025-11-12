@@ -59,7 +59,7 @@ const wss = new WebSocketServer({ server });
 const DB_HOST = 'localhost';
 const DB_PORT = 3306;
 const DB_USER = 'demo';
-const DB_PASSWORD = 'demo123';
+const DB_PASSWORD = 'abdul';
 const DB_NAME = 'imgindex';
 
 const pool = mariadb.createPool({
@@ -455,6 +455,12 @@ function makeFilenameFromTimestamp(ts) {
 app.post('/api/frames', (req, res) => {
 	try {
 		const { camNo, timestamp, filename, imageBase64 } = req.body;
+
+		console.log(
+			`/api/frames POST received: camNo=${camNo}, timestamp=${timestamp}, filename=${filename}, imageBase64 length=${
+				imageBase64 ? imageBase64.length : 0
+			}`
+		);
 
 		if (!camNo || !timestamp || !imageBase64) {
 			return res.status(400).json({ error: 'camNo, timestamp and imageBase64 are required' });
